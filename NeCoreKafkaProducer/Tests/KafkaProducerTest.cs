@@ -14,8 +14,6 @@ namespace NeCoreKafkaProducer.Tests
             var success =  await KafkaTaskManager.Produce(new[] {"message"});
             
             Assert.IsTrue(success, "Should be able to produce on a kafka cluster");
-            
-            
         }
     }
 }

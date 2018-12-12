@@ -15,4 +15,8 @@
       <Content Include="Tests\Docker_Context\docker-compose.yml" />
     </ItemGroup>
 
+    <ItemGroup>
+      <Folder Include="KafkaObjects" />
+    </ItemGroup>
+
 </Project>
