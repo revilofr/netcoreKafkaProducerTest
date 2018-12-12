@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using Confluent.Kafka;
+using NeCoreKafkaProducer.Dto;
 
 namespace NeCoreKafkaProducer
 {
@@ -13,29 +14,17 @@ namespace NeCoreKafkaProducer
         /// <summary>
         /// This task allows caller to produce a message
         /// </summary>
-        /// <param name="args"></param>
-        /// <returns></returns>
-        public static async Task<bool> Produce(string[] args)
+        /// <returns>Task<bool> true if task succeded</returns>
+        public static async Task<bool> Produce(KafkaConnection kConnection, int timeout, string message)
         {
-            //Todo pass the url as an argument
-            //Check args
-            String kafkaBrokerUrl = "localhost";
-            String kafkaBrokerPort = "9092";
-            int timeout = 1000;
-
-            foreach (string arg in args)
-            {
-                
-            }
-            
-            var config = new ProducerConfig { BootstrapServers = "10.0.2.15:9092" };
+            var config = new ProducerConfig { BootstrapServers = $"{kConnection.Url}:{kConnection.Port}" };
 
             // A Producer for sending messages with null keys and UTF-8 encoded values.
             using (var p = new Producer<Null, string>(config))
             {
                 try
                 {
-                    var dr = p.ProduceAsync("witsmlCreateEvent", new Message<Null, string> { Value="test" });
+                    var dr = p.ProduceAsync(kConnection.Topic, new Message<Null, string> { Value=message });
                     if (await Task.WhenAny(dr, Task.Delay(timeout)) == dr)
                     {
                         var taskResult = await dr;
@@ -64,19 +53,12 @@ namespace NeCoreKafkaProducer
         /// <param name="autoOffsetReset"></param>
         /// <param name="timeout">time in milisecond</param>
         /// <param name="action"></param>
-        public static void Consume(string topic, string groupId, string autoOffsetReset, CancellationToken ct, Action<string> action)
-        {
-            long targetTime = long.MaxValue;
-            
-//            if (timeout != null)
-//            {
-//                targetTime = DateTime.Now.Ticks + (long)timeout*100000;
-//            }
-            
+        public static void Consume(KafkaConnection kConnection, string groupId, string autoOffsetReset, CancellationToken ct, Action<string> action)
+        {                     
             var conf = new ConsumerConfig
             {
-                GroupId = "test-consumerConfig",
-                BootstrapServers = "10.0.2.15:9092",
+                GroupId = groupId,
+                BootstrapServers = $"{kConnection.Url}:{kConnection.Port}",
                 // Note: The AutoOffsetReset property determines the start offset in the event
                 // there are not yet any committed offsets for the consumer group for the
                 // topic/partitions of interest. By default, offsets are committed
@@ -85,12 +67,12 @@ namespace NeCoreKafkaProducer
                 AutoOffsetReset = AutoOffsetResetType.Earliest
             };
 
-            CheckConsumeParameters(topic, groupId, autoOffsetReset,  conf);
+            CheckConsumeParameters(kConnection.Topic, groupId, autoOffsetReset,  conf);
 
 
             using (var c = new Consumer<Ignore, string>(conf))
             {
-                c.Subscribe(topic);
+                c.Subscribe(kConnection.Topic);
 
                 bool consuming = true;
                 // The client will automatically recover from non-fatal errors. You typically
@@ -103,7 +85,7 @@ namespace NeCoreKafkaProducer
                 {
                     try
                     {
-                        var cr = c.Consume();
+                        var cr = c.Consume(ct);
                         Console.WriteLine($"Consumed message '{cr.Value}' at: '{cr.TopicPartitionOffset}'.");
                         
                         //Callback each time a message is consumed
